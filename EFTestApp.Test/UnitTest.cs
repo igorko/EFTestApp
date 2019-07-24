@@ -1,8 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.Common;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Net.Http;
+using System.Web.Http.Results;
 using Effort;
+using EFTestApp.Controllers;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Moq;
 
 namespace EFTestApp.Test
 {
@@ -10,7 +14,7 @@ namespace EFTestApp.Test
     public class UnitTest
     {
         [TestMethod]
-        public void TestMethod()
+        public void TestController()
         {
             DbConnection effortConnection = DbConnectionFactory.CreatePersistent("MyInstanceName");
             var context = new CustomerModel(effortConnection);
@@ -20,8 +24,21 @@ namespace EFTestApp.Test
             transactionsList.AddFirst(tr);
             Customer user = new Customer { ID = 41, Name = "us1", Email = "example@ex.com", MobileNo = 345346364346, Transactions = transactionsList };
 
+            var mockHttpContext = new Mock<HttpRequestMessage>();
+            var mockRequest = new Mock<HttpRequestMessage>();
+
+            mockRequest.Object.Content = new StringContent("{ \"ID\" : 41 }");
+
             context.Customers.Add(user);
             context.SaveChanges();
+
+            var ctrl = new CustomersController(context);
+            var contentResult = ctrl.GetCustomer(mockRequest.Object) as OkNegotiatedContentResult<Customer>;
+
+            var returnedCustomer = contentResult.Content;
+            var returnedTransactions = returnedCustomer.Transactions;
+            Assert.AreEqual(returnedCustomer, user);
+            Assert.AreEqual(returnedTransactions, transactionsList);
         }
     }
 }
